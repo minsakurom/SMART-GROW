@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SMART-GROW — Panel de control y supervisión para invernadero escolar automatizado con ESP32-S3 e IA Local">
+    <title>SMART-GROW — Panel de Control de Invernadero Inteligente</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Encabezado Principal -->
+    <header class="app-header">
+        <div class="brand-container">
+            <div class="brand-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="brand-title">SMART-GROW</h1>
+                <p class="brand-subtitle">Invernadero Inteligente Escolar &bull; ESP32-S3 N16R8</p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <div class="connection-box">
+                <label for="device-ip-input" class="visually-hidden">IP del Dispositivo</label>
+                <input type="text" id="device-ip-input" value="127.0.0.1:8000" placeholder="IP del ESP32 o Puente">
+                <button id="btn-reconnect" class="btn btn-secondary" title="Reconectar con el dispositivo">
+                    Reconectar
+                </button>
+            </div>
+            <div id="connection-badge" class="badge badge-offline">DESCONECTADO</div>
+            <div id="mode-badge" class="badge badge-mode">MODO AUTO</div>
+            <button id="btn-emergency-stop" class="btn btn-danger" title="Parada total inmediata de actuadores">
+                PARADA DE EMERGENCIA
+            </button>
+        </div>
+    </header>
+
+    <!-- Banner de Alertas y Desconexión -->
+    <div id="offline-banner" class="alert-banner alert-danger hidden">
+        <span class="alert-icon">&#9888;</span>
+        <div class="alert-content">
+            <strong>DISPOSITIVO FUERA DE LÍNEA:</strong> No se reciben datos del ESP32-S3. Los valores en pantalla corresponden a la última lectura registrada o permanecen inactivos para evitar lecturas ficticias.
+        </div>
+    </div>
+
+    <div id="simulation-banner" class="alert-banner alert-warning hidden">
+        <span class="alert-icon">&#9874;</span>
+        <div class="alert-content">
+            <strong>MODO SIMULACIÓN ESCOLAR ACTIVO:</strong> El sistema está operando con datos forzados de prueba (Sequía / Calor) para demostración en feria científica. Los valores reales del sensor permanecen resguardados.
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <main class="main-layout">
+        <!-- Fila 1: Métricas de Sensores -->
+        <section class="section-container" aria-labelledby="sensors-heading">
+            <div class="section-header">
+                <h2 id="sensors-heading" class="section-title">Variables Ambientales y de Sustrato</h2>
+                <span id="last-update-time" class="timestamp">Última actualización: --:--:--</span>
+            </div>
+
+            <div class="grid-cards-4">
+                <!-- Tarjeta: Temperatura -->
+                <article class="metric-card" id="card-temp">
+                    <div class="card-top">
+                        <span class="card-label">Temperatura Interior</span>
+                        <span class="card-icon icon-temp">&#127777;</span>
+                    </div>
+                    <div class="card-value-row">
+                        <span id="val-temp" class="metric-value">--.-</span>
+                        <span class="metric-unit">°C</span>
+                    </div>
+                    <div class="card-footer">
+                        <span id="badge-temp-status" class="status-pill pill-ok">Óptimo (20-27°C)</span>
+                        <span id="tag-temp-sim" class="sim-badge hidden">SIMULADO</span>
+                    </div>
+                </article>
+
+                <!-- Tarjeta: Humedad del Aire -->
+                <article class="metric-card" id="card-humidity">
+                    <div class="card-top">
+                        <span class="card-label">Humedad Ambiental</span>
+                        <span class="card-icon icon-hum">&#128167;</span>
+                    </div>
+                    <div class="card-value-row">
+                        <span id="val-humidity" class="metric-value">--.-</span>
+                        <span class="metric-unit">% RH</span>
+                    </div>
+                    <div class="card-footer">
+                        <span id="badge-hum-status" class="status-pill pill-ok">Rango Normal</span>
+                        <span id="tag-hum-sim" class="sim-badge hidden">SIMULADO</span>
+                    </div>
+                </article>
+
+                <!-- Tarjeta: Humedad del Suelo -->
+                <article class="metric-card" id="card-soil">
+                    <div class="card-top">
+                        <span class="card-label">Humedad de Suelo (Capacitivo)</span>
+                        <span class="card-icon icon-soil">&#127793;</span>
+                    </div>
+                    <div class="card-value-row">
+                        <span id="val-soil" class="metric-value">--.-</span>
+                        <span class="metric-unit">% Rel.</span>
+                    </div>
+                    <div class="card-footer">
+                        <span id="badge-soil-status" class="status-pill pill-ok">Calibrado</span>
+                        <span id="tag-soil-sim" class="sim-badge hidden">SIMULADO</span>
+                    </div>
+                </article>
+
+                <!-- Tarjeta: Nivel de Iluminación -->
+                <article class="metric-card" id="card-light">
+                    <div class="card-top">
+                        <span class="card-label">Iluminación Fotosintética</span>
+                        <span class="card-icon icon-light">&#9728;</span>
+                    </div>
+                    <div class="card-value-row">
+                        <span id="val-light" class="metric-value">--.-</span>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <div class="card-footer">
+                        <span id="badge-light-status" class="status-pill pill-ok">Luz Diurna</span>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Fila 2: Actuadores y Demostración Escolar -->
+        <div class="grid-split-2">
+            <!-- Panel de Actuadores -->
+            <section class="section-container" aria-labelledby="actuators-heading">
+                <div class="section-header">
+                    <h2 id="actuators-heading" class="section-title">Actuadores y Mecanismos Físicos</h2>
+                    <div class="mode-toggle-group">
+                        <button id="btn-set-auto" class="btn btn-sm btn-active">AUTO</button>
+                        <button id="btn-set-manual" class="btn btn-sm">MANUAL</button>
+                    </div>
+                </div>
+
+                <div class="actuators-list">
+                    <!-- Actuador: Bomba de Agua -->
+                    <div class="actuator-item" id="item-pump">
+                        <div class="actuator-info">
+                            <span class="actuator-name">Bomba de Riego (MOSFET GPIO14)</span>
+                            <span class="actuator-sub" id="pump-cooldown-text">Cooldown: 0 s</span>
+                        </div>
+                        <div class="actuator-controls">
+                            <span id="pump-status-badge" class="state-badge badge-off">APAGADA</span>
+                            <div class="pump-manual-box">
+                                <label for="pump-duration" class="visually-hidden">Segundos de riego</label>
+                                <input type="number" id="pump-duration" value="5" min="2" max="10" title="Duración en segundos (máx 10s)">
+                                <button id="btn-run-pump" class="btn btn-primary btn-sm" disabled>Regar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actuador: Ventilador -->
+                    <div class="actuator-item" id="item-fan">
+                        <div class="actuator-info">
+                            <span class="actuator-name">Ventilador Térmico (MOSFET GPIO15)</span>
+                            <span class="actuator-sub">PWM 25 kHz silencioso</span>
+                        </div>
+                        <div class="actuator-controls">
+                            <span id="fan-status-badge" class="state-badge badge-off">APAGADO</span>
+                            <button id="btn-toggle-fan" class="btn btn-outline btn-sm" disabled>Alternar</button>
+                        </div>
+                    </div>
+
+                    <!-- Actuador: Iluminación LED -->
+                    <div class="actuator-item" id="item-light">
+                        <div class="actuator-info">
+                            <span class="actuator-name">Iluminación LED Cultivo (GPIO16)</span>
+                            <span class="actuator-sub">Dimmer PWM 5 kHz</span>
+                        </div>
+                        <div class="actuator-controls">
+                            <span id="light-status-badge" class="state-badge badge-off">APAGADA</span>
+                            <input type="range" id="slider-light" min="0" max="100" value="0" disabled>
+                            <span id="light-val-display" class="slider-val">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- Actuador: Ventana Servomotor -->
+                    <div class="actuator-item" id="item-window">
+                        <div class="actuator-info">
+                            <span class="actuator-name">Ventana Basculante (Servo SG90 GPIO17)</span>
+                            <span class="actuator-sub">Apertura angular: 0° a 90°</span>
+                        </div>
+                        <div class="actuator-controls">
+                            <span id="window-status-badge" class="state-badge badge-off">CERRADA (0°)</span>
+                            <input type="range" id="slider-window" min="0" max="90" step="15" value="0" disabled>
+                            <span id="window-val-display" class="slider-val">0°</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel de Simulación y Feria Científica -->
+            <section class="section-container" aria-labelledby="demo-heading">
+                <div class="section-header">
+                    <h2 id="demo-heading" class="section-title">Simulación Escolar y Pruebas</h2>
+                    <span class="badge badge-info">Feria de Ciencias</span>
+                </div>
+                <p class="section-desc">
+                    Permite demostrar en vivo la respuesta autónoma del invernadero ante emergencias climáticas sin alterar los sensores reales.
+                </p>
+
+                <div class="demo-buttons-grid">
+                    <button id="btn-sim-drought" class="btn btn-warning demo-btn">
+                        <span class="demo-icon">&#128012;</span>
+                        <strong>Simular Sequía Crítica</strong>
+                        <small>Fuerza suelo a 18% para activar bomba</small>
+                    </button>
+
+                    <button id="btn-sim-heat" class="btn btn-warning demo-btn">
+                        <span class="demo-icon">&#128293;</span>
+                        <strong>Simular Ola de Calor</strong>
+                        <small>Fuerza temp a 34.5°C para abrir ventana</small>
+                    </button>
+
+                    <button id="btn-sim-stop" class="btn btn-secondary demo-btn">
+                        <span class="demo-icon">&#9989;</span>
+                        <strong>Restablecer Normalidad</strong>
+                        <small>Cancela simulaciones activas</small>
+                    </button>
+                </div>
+
+                <!-- Resumen de Inteligencia Artificial Local (LM Studio) -->
+                <div class="ai-box">
+                    <div class="ai-header">
+                        <span class="ai-title">&#129302; Diagnóstico Agronómico (LM Studio Local)</span>
+                        <span id="ai-status-badge" class="status-pill pill-neutral">Modo Observador</span>
+                    </div>
+                    <p id="ai-recommendation-text" class="ai-text">
+                        Esperando análisis del modelo de lenguaje local... El puente verifica condiciones cada 30 segundos.
+                    </p>
+                    <div class="ai-footer">
+                        <button id="btn-request-ai-analysis" class="btn btn-sm btn-outline">Consultar IA Ahora</button>
+                        <small class="ai-disclaimer">Seguridad: Las sugerencias de IA son validadas por reglas deterministas antes de autorizar actuadores.</small>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Fila 3: Gráficas de Evolución Temporal -->
+        <section class="section-container" aria-labelledby="charts-heading">
+            <div class="section-header">
+                <h2 id="charts-heading" class="section-title">Evolución Temporal de Variables (Últimos Minutos)</h2>
+                <div class="chart-legend">
+                    <span class="legend-item"><span class="dot dot-temp"></span> Temperatura (°C)</span>
+                    <span class="legend-item"><span class="dot dot-soil"></span> Humedad Suelo (%)</span>
+                    <span class="legend-item"><span class="dot dot-light"></span> Luz (%)</span>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="telemetryChart" height="100"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>SMART-GROW &bull; Proyecto Integral de Automatización Agrícola Escolar &bull; Basado en ESP32-S3 y Python Bridge</p>
+    </footer>
+
+    <!-- Chart.js para renderizado ligero sin dependencias complejas de build -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

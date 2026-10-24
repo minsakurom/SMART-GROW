@@ -1,0 +1,24 @@
+Item,Componente,Referencia/Modelo,Cantidad,Especificación Técnica,Función en SMART-GROW,Observaciones
+1,Microcontrolador Principal,Lonely Binary ESP32-S3 N16R8 Gold Edition,1,16MB Flash OPI / 8MB PSRAM / Dual Type-C / 3.3V GPIO,Unidad central de control y conectividad Wi-Fi,Utilizar pines seguros definidos en pinout.md
+2,Sensor de Humedad del Suelo,Capacitive Soil Moisture Sensor v1.2 / v2.0,1,Principio capacitivo / 3.3V compatible / Salida analógica,Medición de humedad radicular sin corrosión galvánica,Conectar a GPIO1 (ADC1_CH0)
+3,Sensor de Temperatura y Humedad,DHT22 / AM2302,1,Rango Temp: -40 a 80 °C / Hum: 0 a 100% RH / 3.3V - 5V,Monitoreo del clima interior del invernadero,Conectar a GPIO4 con pull-up 4.7k
+4,Sensor de Iluminación,LDR 5mm GL5528 + Resistencia 10k,1,Resistencia luz: 10-20 kΩ / Oscuridad: 1 MΩ,Medición relativa de luz solar y fotoperiodo,Divisor de tensión conectado a GPIO2 (ADC1_CH1)
+5,Pantalla de Visualización Local,OLED 0.96 pulgadas I2C SSD1306,1,128x64 píxeles / Interfaz I2C / 3.3V - 5V / Azul o Blanco,Despliegue local de estados telemetría e IP,SDA a GPIO8 y SCL a GPIO9
+6,Servomotor de Ventana,SG90 Micro Servo 9g,1,Voltaje 4.8 - 6.0 V / Torque 1.8 kg·cm / PWM 50Hz,Apertura mecánica de ventana de ventilación,Alimentar con 5V externa / Señal a GPIO17
+7,Bomba de Agua,Mini Electrobomba Sumergible DC,1,Voltaje 3V - 5V DC / Corriente 250 - 400 mA / Sumergible,Riego localizado por goteo,Conmutada por MOSFET en GPIO14 con diodo flyback
+8,Ventilador de Evacuación,Ventilador DC 40x40x10mm o 50x50x15mm,1,Voltaje 5V o 12V DC / Corriente 150 - 250 mA,Renovación de aire y control térmico,Conmutado por MOSFET en GPIO15 con diodo flyback
+9,Iluminación Hortícola,Tira LED Full Spectrum / Blanco Cálido 5V o 12V,1,Longitud 30-50 cm / 5V o 12V / Consumo ~0.5A,Luz suplementaria para fotosíntesis,Dimmer PWM en GPIO16 vía MOSFET
+10,Transistores de Potencia,IRLZ44N o Módulo MOSFET Logic-Level AO3400,3,N-Channel Logic-Level / Vth < 2.0V / Id > 5A,Etapas de potencia para bomba ventilador y luces,Garantiza saturación plena con lógica 3.3V
+11,Diodos de Protección Inductiva,1N5819 (Schottky) o 1N4007,2,1N5819: 40V 1A / Tiempo de recuperación ultra rápido,Diodos Flyback para bomba y ventilador,Protección contra sobretensiones inversas (Back-EMF)
+12,Pulsadores de Simulación,Pulsadores Momentáneos Táctiles 6x6mm,2,Contacto normalmente abierto / 4 pines montaje protoboard,Simulación de eventos de sequía y calor para ferias,Conectar a GPIO5 y GPIO6 con debouncing
+13,Resistencias de Compuerta MOSFET,Resistencia de Película Metálica 150 Ω 1/4W,3,Tolerancia 1% / 150 ohmios,Limitación de corriente transitoria de compuerta,Protección de pines GPIO14 GPIO15 GPIO16
+14,Resistencias Pull-Down MOSFET,Resistencia de Película Metálica 10 kΩ 1/4W,3,Tolerancia 1% / 10 k ohmios,Asegura nivel bajo en compuerta en reposo o boot,Evita encendido accidental de actuadores
+15,Resistencia Divisor LDR,Resistencia de Película Metálica 10 kΩ 1/4W,1,Tolerancia 1% / 10 k ohmios,Compañera en divisor de voltaje para el LDR,Conexión a masa desde GPIO2
+16,Resistencia Pull-Up DHT22,Resistencia de Película Metálica 4.7 kΩ 1/4W,1,Tolerancia 5% / 4.7 k ohmios,Línea de datos OneWire a 3.3V,Opcional si el módulo DHT22 ya la incluye
+17,Condensadores de Desacoplo,Condensador Cerámico Multicapa 100 nF (0.1 µF),4,Voltaje 50V / Cerámico X7R,Filtros de ruido en ADC y botones anti-rebote,Colocar cerca de pines analógicos y pulsadores
+18,Condensador de Filtro de Potencia,Condensador Electrolítico de Aluminio 470 µF 16V,2,Capacidad 470 µF / 16V radial,Estabilización del riel 5V para el servo y bomba,Evita caídas de tensión que reinicien el ESP32
+19,Fuente de Alimentación Externa,Adaptador AC/DC 5V 3A (o 12V 2A + Step-Down),1,Entrada 100-240VAC / Salida 5V 3000mA DC Jack 5.5mm,Alimentación independiente de potencia y control,Suministro seguro de baja tensión
+20,Regulador Step-Down (Si se usa 12V),Módulo Convertidor DC-DC Buck LM2596 / MP1584,1,Entrada 7-28V / Salida 5V 2A ajustable,Reducción de 12V a 5V para ESP32 y Servo,Solo requerido si los ventiladores/bomba son de 12V
+21,Placa de Prototipado,Protoboard 830 puntos de contacto,1,Doble riel de alimentación / Paso 2.54 mm,Montaje y validación sin soldadura del prototipo,Permite cableado modular de señales
+22,Estructura del Invernadero,Caja o Domo de Acrílico/Policarbonato Transparente,1,Dimensiones aprox. 25x20x20 cm con bisagra superior,Estructura física del invernadero escolar,Aloja planta sensores y ventana basculante
+23,Accesorios Hidráulicos,Tubo de Silicona Flexible 4/6mm + Gotero regulable,1,Longitud 1 metro / Gotero de flujo lento 2-4 L/h,Canalización de riego desde depósito a sustrato,Incluye depósito plástico cerrado 250-500 ml

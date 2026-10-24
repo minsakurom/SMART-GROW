@@ -1,0 +1,110 @@
+flowchart TB
+    subgraph ALIMENTACION ["Sistema de Suministro Eléctrico (Baja Tensión)"]
+        PWR_EXT["Fuente Externa 5V/12V DC\n(3A Regulada)"]
+        BUCK["Módulo Buck DC-DC 5V\n(Opcional si entrada es 12V)"]
+        PWR_EXT -->|12V si aplica| BUCK
+        PWR_5V["Riel Potencia 5.0 V\n(Bomba, Fan, Servo, LED)"]
+        GND_STAR["NODO CENTRAL DE MASA\n(Star Common Ground)"]
+        PWR_EXT -->|VCC| PWR_5V
+        PWR_EXT -->|GND| GND_STAR
+        BUCK -->|5V OUT| PWR_5V
+        BUCK -->|GND OUT| GND_STAR
+    end
+
+    subgraph MCU_ESP32 ["Controlador Principal: LONELY BINARY ESP32-S3 Gold Edition"]
+        ESP32["ESP32-S3 (16MB Flash / 8MB PSRAM)\nLógica GPIO 3.3V"]
+        REG_3V3["LDO Interno 3.3V"]
+        ESP32 --- REG_3V3
+    end
+
+    PWR_5V -->|5V IN / VBUS| ESP32
+    GND_STAR <-->|GND común| ESP32
+
+    subgraph SENSORES ["Subsistema de Sensores (Lecturas 3.3V)"]
+        SOIL["Sensor Humedad Suelo Capacitivo\n(v1.2 / v2.0)"]
+        LDR["Sensor de Luz LDR\n(+ Divisor 10k)"]
+        DHT["Sensor Temp/Humedad DHT22\n(Pull-Up 4.7k)"]
+        BTN_DROUGHT["Pulsador Sequía\n(GPIO5 / Debounce)"]
+        BTN_HEAT["Pulsador Calor\n(GPIO6 / Debounce)"]
+        OLED["Pantalla OLED SSD1306\n(I2C 128x64)"]
+    end
+
+    REG_3V3 -->|3.3V VCC| SOIL
+    REG_3V3 -->|3.3V VCC| LDR
+    REG_3V3 -->|3.3V VCC| DHT
+    REG_3V3 -->|3.3V VCC| OLED
+    GND_STAR -->|Retorno GND| SOIL
+    GND_STAR -->|Retorno GND| LDR
+    GND_STAR -->|Retorno GND| DHT
+    GND_STAR -->|Retorno GND| OLED
+    GND_STAR -->|Contacto GND| BTN_DROUGHT
+    GND_STAR -->|Contacto GND| BTN_HEAT
+
+    SOIL -->|Analógica 0-3V| ESP32_GPIO1["GPIO1 (ADC1_CH0)"]
+    LDR -->|Analógica 0.2-3.1V| ESP32_GPIO2["GPIO2 (ADC1_CH1)"]
+    DHT <-->|OneWire Data| ESP32_GPIO4["GPIO4 (Digital)"]
+    BTN_DROUGHT -->|Activo LOW| ESP32_GPIO5["GPIO5 (Digital In)"]
+    BTN_HEAT -->|Activo LOW| ESP32_GPIO6["GPIO6 (Digital In)"]
+    OLED <-->|SDA (I2C)| ESP32_GPIO8["GPIO8 (I2C SDA)"]
+    OLED <-->|SCL (I2C)| ESP32_GPIO9["GPIO9 (I2C SCL)"]
+
+    subgraph ETAPAS_POTENCIA ["Etapas de Conmutación y Actuadores"]
+        subgraph BOMBA_STAGE ["Etapa Bomba de Agua"]
+            MOS_PUMP["MOSFET IRLZ44N\n(Rg 150Ω + Rpd 10k)"]
+            DIODE_PUMP["Diodo Flyback 1N5819\n(Protección Back-EMF)"]
+            PUMP["Mini Bomba DC Sumergible\n(Riego por goteo)"]
+        end
+
+        subgraph FAN_STAGE ["Etapa Ventilación"]
+            MOS_FAN["MOSFET IRLZ44N\n(Rg 150Ω + Rpd 10k)"]
+            DIODE_FAN["Diodo Flyback 1N5819\n(Protección Back-EMF)"]
+            FAN["Ventilador DC 5V/12V\n(Evacuación térmica)"]
+        end
+
+        subgraph LED_STAGE ["Etapa Iluminación"]
+            MOS_LED["MOSFET IRLZ44N\n(Rg 150Ω + Rpd 10k)"]
+            GROW_LEDS["Tira LED Fotosintética\n(PWM 5 kHz Dimmer)"]
+        end
+
+        subgraph SERVO_STAGE ["Etapa Ventana Mecánica"]
+            SERVO["Servomotor SG90\n(0° a 90° Apertura Ventana)"]
+            CAP_SERVO["Condensador 470µF 16V\n(Filtro de transitorios)"]
+        end
+    end
+
+    ESP32_GPIO14["GPIO14 (PWM/Out)"] -->|Rg 150Ω| MOS_PUMP
+    ESP32_GPIO15["GPIO15 (PWM/Out)"] -->|Rg 150Ω| MOS_FAN
+    ESP32_GPIO16["GPIO16 (LEDC PWM)"] -->|Rg 150Ω| MOS_LED
+    ESP32_GPIO17["GPIO17 (LEDC 50Hz)"] -->|PWM 3.3V| SERVO
+
+    PWR_5V --> PUMP
+    PWR_5V --> FAN
+    PWR_5V --> GROW_LEDS
+    PWR_5V --> SERVO
+    PWR_5V --> CAP_SERVO
+
+    DIODE_PUMP -.->|Paralelo Inverso| PUMP
+    DIODE_FAN -.->|Paralelo Inverso| FAN
+
+    PUMP --> MOS_PUMP
+    FAN --> MOS_FAN
+    GROW_LEDS --> MOS_LED
+
+    MOS_PUMP --> GND_STAR
+    MOS_FAN --> GND_STAR
+    MOS_LED --> GND_STAR
+    SERVO --> GND_STAR
+    CAP_SERVO --> GND_STAR
+
+    subgraph TELEMETRIA_EXTERNA ["Comunicaciones y Capa Superior"]
+        WIFI_AP["Red Local Wi-Fi (WPA2)"]
+        DASHBOARD["Dashboard Web Local\n(Supervisión y Control Seguro)"]
+        AI_BRIDGE["Puente Python\n(FastAPI + Safety Guard)"]
+        LM_STUDIO["LM Studio (IA Local)\n(API compatible OpenAI)"]
+
+        ESP32 <-->|REST API / SSE| WIFI_AP
+        ESP32 <-->|USB Serial JSON| AI_BRIDGE
+        WIFI_AP <--> DASHBOARD
+        AI_BRIDGE <--> LM_STUDIO
+        AI_BRIDGE <--> DASHBOARD
+    end
